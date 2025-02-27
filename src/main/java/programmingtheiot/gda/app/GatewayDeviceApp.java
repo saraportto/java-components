@@ -47,7 +47,7 @@ public class GatewayDeviceApp
 		
 		_Logger.info("Initializing GDA...");
 		
-		this.sysPerfMgr =new SystemPerformanceManager();
+		this.sysPerfMgr = new SystemPerformanceManager();
 
 		parseArgs(args);
 	}
