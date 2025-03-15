@@ -14,6 +14,9 @@ package programmingtheiot.gda.app;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import programmingtheiot.common.ConfigConst;
+import programmingtheiot.common.ConfigUtil;
+
 import programmingtheiot.gda.system.SystemPerformanceManager;
 
 /**
@@ -24,14 +27,14 @@ public class GatewayDeviceApp
 {
 	// static
 	
-	private static final Logger _Logger =
-		Logger.getLogger(GatewayDeviceApp.class.getName());
-	
+	private static final Logger _Logger = Logger.getLogger(GatewayDeviceApp.class.getName());	
 	public static final long DEFAULT_TEST_RUNTIME = 60000L;
 	
 	// private var's
 
-	private SystemPerformanceManager sysPerfMgr =null;
+	private DeviceDataManager dataMgr = null;
+	private SystemPerformanceManager sysPerfMgr = null;
+
 	
 	
 	// constructors
@@ -65,14 +68,34 @@ public class GatewayDeviceApp
 		GatewayDeviceApp gwApp = new GatewayDeviceApp(args);
 		
 		gwApp.startApp();
+
+		boolean runForever =ConfigUtil.getInstance().getBoolean(
+												ConfigConst.GATEWAY_DEVICE,
+												ConfigConst.ENABLE_RUN_FOREVER_KEY
+												);
+
+		if (runForever) {
+
+			try {
+				Thread.sleep(2000L);
+
+			} catch (InterruptedException e) {
+				// ignore
+			}
+			gwApp.stopApp(0);
+
+
+		} else {
+
+			try {
+				Thread.sleep(DEFAULT_TEST_RUNTIME);
+
+			} catch (InterruptedException e) {
+				// ignore
+			}
+			gwApp.stopApp(0);
+		} 
 		
-		try {
-			Thread.sleep(DEFAULT_TEST_RUNTIME);
-		} catch (InterruptedException e) {
-			// ignore
-		}
-		
-		gwApp.stopApp(0);
 	}
 	
 	
@@ -86,6 +109,7 @@ public class GatewayDeviceApp
 	{
 		_Logger.info("Starting GDA...");
 		
+		/*
 		try {
 			if (this.sysPerfMgr.startManager()) {
 				_Logger.info("GDA started successfully.");
@@ -94,6 +118,23 @@ public class GatewayDeviceApp
 			}
 			stopApp(-1);
 		
+		} catch (Exception e) {
+			_Logger.log(Level.SEVERE, "Failed to start GDA. Exiting.", e);
+			stopApp(-1);
+		}
+		*/
+
+		try {
+			if (!ConfigUtil.getInstance().getBoolean(ConfigConst.GATEWAY_DEVICE,ConfigConst.TEST_EMPTY_APP_KEY)) {
+				this.dataMgr =new DeviceDataManager();
+			}
+				
+			if (this.dataMgr !=null) {
+				this.dataMgr.startManager();
+			}
+
+			_Logger.info("GDA started successfully.");
+				
 		} catch (Exception e) {
 			_Logger.log(Level.SEVERE, "Failed to start GDA. Exiting.", e);
 			stopApp(-1);
@@ -109,6 +150,7 @@ public class GatewayDeviceApp
 	{
 		_Logger.info("Stopping GDA...");
 		
+		/*
 		try {
 			if (this.sysPerfMgr.stopManager()) {
 				_Logger.log(Level.INFO, "GDA stopped successfully with exit code {0}.", code);
@@ -119,12 +161,32 @@ public class GatewayDeviceApp
 		} catch (Exception e) {
 			_Logger.log(Level.SEVERE, "Failed to cleanly stop GDA. Exiting.", e);
 		}
-		
+
 		System.exit(code);
+		*/
+		
+		try {
+			if (this.dataMgr !=null) {
+			this.dataMgr.stopManager();
+			}
+			_Logger.log(Level.INFO, "GDA stopped successfully with exit code {0}.", code);
+
+		} catch (Exception e) {
+			_Logger.log(Level.SEVERE, "Failed to cleanly stop GDA. Exiting.", e);
+		}
+		
+		// Solo salir si no estamos en una prueba
+		if (!isRunningInTestMode()) {
+			System.exit(code);
+		}
 	}
 	
 	
 	// private methods
+
+	private boolean isRunningInTestMode() {
+		return System.getProperty("surefire.test.class.path") != null;
+	}
 	
 	/**
 	 * Load the config file.

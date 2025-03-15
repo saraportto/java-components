@@ -55,17 +55,38 @@ public class DataUtil
 	
 	public String actuatorDataToJson(ActuatorData actuatorData)
 	{
-		return null;
+		String jsonData = null;
+
+		if (actuatorData != null) {
+			Gson gson = new Gson();
+			jsonData = gson.toJson(actuatorData);
+		}
+
+		return jsonData;
 	}
 	
 	public String sensorDataToJson(SensorData sensorData)
 	{
-		return null;
+		String jsonData = null;
+
+		if (sensorData != null) {
+			Gson gson = new Gson();
+			jsonData = gson.toJson(sensorData);
+		}
+
+		return jsonData;
 	}
 	
 	public String systemPerformanceDataToJson(SystemPerformanceData sysPerfData)
 	{
-		return null;
+		String jsonData = null;
+
+		if (sysPerfData != null) {
+			Gson gson = new Gson();
+			jsonData = gson.toJson(sysPerfData);
+		}
+
+		return jsonData;
 	}
 	
 	public String systemStateDataToJson(SystemStateData sysStateData)
@@ -75,17 +96,38 @@ public class DataUtil
 	
 	public ActuatorData jsonToActuatorData(String jsonData)
 	{
-		return null;
+		ActuatorData actuatorData =null;
+
+		if (jsonData !=null && jsonData.trim().length() >0) {
+			Gson gson = new Gson();
+			actuatorData = gson.fromJson(jsonData,ActuatorData.class);
+		}
+
+		return actuatorData;
 	}
 	
 	public SensorData jsonToSensorData(String jsonData)
 	{
-		return null;
+		SensorData sensorData =null;
+
+		if (jsonData !=null && jsonData.trim().length() >0) {
+			Gson gson = new Gson();
+			sensorData = gson.fromJson(jsonData,SensorData.class);
+		}
+
+		return sensorData;	
 	}
 	
 	public SystemPerformanceData jsonToSystemPerformanceData(String jsonData)
 	{
-		return null;
+		SystemPerformanceData sysPerformanceData =null;
+
+		if (jsonData !=null && jsonData.trim().length() >0) {
+			Gson gson = new Gson();
+			sysPerformanceData = gson.fromJson(jsonData,SystemPerformanceData.class);
+		}
+
+		return sysPerformanceData;	
 	}
 	
 	public SystemStateData jsonToSystemStateData(String jsonData)

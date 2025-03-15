@@ -122,7 +122,8 @@ public class DataUtilTest
 	 */
 	
 //	@Test
-	public void testSystemStateDatatoJsonAndBack()
+	/*
+		public void testSystemStateDatatoJsonAndBack()
 	{
 		DataUtil dataUtil = DataUtil.getInstance();
 		
@@ -142,4 +143,5 @@ public class DataUtilTest
 		assertTrue(data.getCommand() == data2.getCommand());
 	}
 	
+	 */
 }
