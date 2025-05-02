@@ -26,8 +26,9 @@
  import programmingtheiot.common.IDataMessageListener;
  import programmingtheiot.common.ResourceNameEnum;
  
- 
- import programmingtheiot.gda.connection.handlers.GenericCoapResourceHandler;
+import programmingtheiot.gda.connection.handlers.UpdateSystemPerformanceResourceHandler;
+import programmingtheiot.gda.connection.handlers.UpdateTelemetryResourceHandler;
+import programmingtheiot.gda.connection.handlers.GenericCoapResourceHandler;
  
  /**
   * Shell representation of class for student implementation.

@@ -18,7 +18,6 @@ import programmingtheiot.gda.connection.CoapServerGateway;
 import programmingtheiot.gda.connection.CoapClientConnector;
 import programmingtheiot.gda.connection.handlers.UpdateSystemPerformanceResourceHandler;
 import programmingtheiot.gda.connection.handlers.UpdateTelemetryResourceHandler;
-
 public class UpdateResourceHandlerTest
 {
     private static final Logger _Logger =
