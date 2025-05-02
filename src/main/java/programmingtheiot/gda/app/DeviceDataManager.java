@@ -50,7 +50,7 @@ public class DeviceDataManager implements IDataMessageListener
 	// private var's
 	
 	private boolean enableMqttClient = true;
-	private boolean enableCoapServer = false;
+	private boolean enableCoapServer = true;
 	private boolean enableCloudClient = false;
 	private boolean enableSmtpClient = false;
 	private boolean enablePersistenceClient = false;
@@ -64,7 +64,7 @@ public class DeviceDataManager implements IDataMessageListener
 	private CoapServerGateway coapServer = null;
 	private SystemPerformanceManager sysPerfMgr = null;
 
-	private MqttClientConnector mqttClient; 
+	//private MqttClientConnector mqttClient; 
 
 	
 	// constructors
@@ -212,6 +212,13 @@ public class DeviceDataManager implements IDataMessageListener
 			_Logger.info("SystemPerformanceManager started.");
 		}
 
+		if (this.enableCoapServer && this.coapServer != null) {
+			if (this.coapServer.startServer()) {
+				_Logger.info("CoAP server started.");
+			} else {
+				_Logger.severe("Failed to start CoAP server. Check log file for details.");
+			}
+		}
 	}
 
 	public void stopManager() {
@@ -238,6 +245,14 @@ public class DeviceDataManager implements IDataMessageListener
 				// Handle disconnection failure.
 			}
 		}
+
+		if (this.enableCoapServer && this.coapServer != null) {
+			if (this.coapServer.stopServer()) {
+				_Logger.info("CoAP server stopped.");
+			} else {
+				_Logger.severe("Failed to stop CoAP server. Check log file for details.");
+			}
+		}
 	}
 	
 	// private methods
@@ -259,6 +274,9 @@ public class DeviceDataManager implements IDataMessageListener
 
 	private void initManager() 
 	{
+
+		_Logger.info("Initializing DeviceDataManager...");
+
 		ConfigUtil configUtil = ConfigUtil.getInstance();
 
 		this.enableSystemPerf = configUtil.getBoolean(
@@ -279,7 +297,8 @@ public class DeviceDataManager implements IDataMessageListener
 		}
 	
 		if (this.enableCoapServer) {
-			// TODO: implement this in Lab Module 8
+			this.coapServer = new CoapServerGateway(this);
+			_Logger.info("CoAP server gateway instance created.");
 		}
 	
 		if (this.enableCloudClient) {

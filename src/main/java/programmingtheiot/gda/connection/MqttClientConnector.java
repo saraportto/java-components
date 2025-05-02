@@ -139,7 +139,7 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 		return false;
 	}
 
-	@Override
+	//@Override
 	public boolean isConnected() {
 		return (this.mqttClient != null && this.mqttClient.isConnected());
 	}

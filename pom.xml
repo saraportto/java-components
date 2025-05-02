@@ -61,7 +61,12 @@
 			<artifactId>scandium</artifactId>
 			<version>3.12.1</version>
 		</dependency>
-		
+		<!-- ESTA LÍNEA es la que faltaba: -->
+		<dependency>
+			<groupId>org.eclipse.californium</groupId>
+			<artifactId>element-connector</artifactId>
+			<version>4.0.0-M3</version>
+		</dependency>
 		<!--
 			NOTE: These dependencies are optional for use
 			with Lab Module's 05 and 12.
