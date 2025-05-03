@@ -16,10 +16,8 @@ import programmingtheiot.data.SensorData;
 import programmingtheiot.data.SystemPerformanceData;
 import programmingtheiot.gda.connection.CoapServerGateway;
 import programmingtheiot.gda.connection.CoapClientConnector;
-import programmingtheiot.gda.connection.handlers.UpdateSystemPerformanceResourceHandler;
-import programmingtheiot.gda.connection.handlers.UpdateTelemetryResourceHandler;
-public class UpdateResourceHandlerTest
-{
+
+public class UpdateResourceHandlerTest {
     private static final Logger _Logger =
             Logger.getLogger(UpdateResourceHandlerTest.class.getName());
 
@@ -32,28 +30,12 @@ public class UpdateResourceHandlerTest
     private CoapClientConnector coapClient;
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception
-    {
+    public static void setUpBeforeClass() throws Exception {
         dataMsgListener = new DefaultDataMessageListener();
         _ServerGateway = new CoapServerGateway(dataMsgListener);
 
-        // System Performance
-        UpdateSystemPerformanceResourceHandler sysHandler =
-            new UpdateSystemPerformanceResourceHandler(
-                ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE.getResourceName()
-            );
-        sysHandler.setDataMessageListener(dataMsgListener);
-
-        // ahora sólo pasamos el enum
+        // Registrar recursos en el servidor CoAP
         _ServerGateway.addResource(ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE);
-
-        // Telemetry
-        UpdateTelemetryResourceHandler telHandler =
-            new UpdateTelemetryResourceHandler(
-                ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE.getResourceName()
-            );
-        telHandler.setDataMessageListener(dataMsgListener);
-
         _ServerGateway.addResource(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE);
 
         assertTrue("No se pudo iniciar el servidor CoAP",
@@ -62,23 +44,20 @@ public class UpdateResourceHandlerTest
     }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception
-    {
+    public static void tearDownAfterClass() throws Exception {
         assertTrue("No se pudo detener el servidor CoAP",
             _ServerGateway.stopServer()
         );
     }
 
     @Before
-    public void setUp() throws Exception
-    {
+    public void setUp() throws Exception {
         this.coapClient = new CoapClientConnector();
         this.coapClient.setDataMessageListener(dataMsgListener);
     }
 
     @Test
-    public void testSystemPerformancePutMessage()
-    {
+    public void testSystemPerformancePutMessage() {
         SystemPerformanceData spData = new SystemPerformanceData();
         String jsonData = DataUtil.getInstance()
             .systemPerformanceDataToJson(spData);
@@ -94,8 +73,7 @@ public class UpdateResourceHandlerTest
     }
 
     @Test
-    public void testTelemetryPutMessage()
-    {
+    public void testTelemetryPutMessage() {
         SensorData sData = new SensorData();
         String jsonData = DataUtil.getInstance()
             .sensorDataToJson(sData);

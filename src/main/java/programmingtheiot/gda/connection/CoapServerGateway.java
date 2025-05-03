@@ -52,7 +52,6 @@ import programmingtheiot.gda.connection.handlers.GenericCoapResourceHandler;
 	 private CoapServer coapServer = null;
 	 private IDataMessageListener dataMsgListener = null;
 	 
-	 
 	 // constructors
 	 
 	 /**
@@ -73,7 +72,7 @@ import programmingtheiot.gda.connection.handlers.GenericCoapResourceHandler;
 	 public void addResource(ResourceNameEnum resource)
 	 {
         // Create and add resource to the CoAP server
-        CoapResource coapResource = createResourceChain(resource);
+        CoapResource coapResource = (CoapResource) createResourceChain(resource);
         if (coapResource != null) {
             this.coapServer.add(coapResource);
         }
@@ -129,8 +128,9 @@ import programmingtheiot.gda.connection.handlers.GenericCoapResourceHandler;
 	 // private methods
 	 
 private Resource createResourceChain(ResourceNameEnum resource) {
-	// Asegúrate de que los nombres de los recursos no contengan barras extra.
-	String resourceName = resource.getResourceName().replaceFirst("^/", ""); // Eliminar barra inicial si existe.
+
+	String resourceName = resource.getResourceType();
+
 
 	if (resource == ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE) {
 		UpdateSystemPerformanceResourceHandler sysHandler = new UpdateSystemPerformanceResourceHandler(resourceName);

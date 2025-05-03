@@ -54,12 +54,12 @@
 		<dependency>
 			<groupId>org.eclipse.californium</groupId>
 			<artifactId>californium-core</artifactId>
-			<version>3.12.1</version>
+			<version>4.0.0-M3</version>
 		</dependency>
 		<dependency>
 			<groupId>org.eclipse.californium</groupId>
 			<artifactId>scandium</artifactId>
-			<version>3.12.1</version>
+			 <version>4.0.0-M3</version>
 		</dependency>
 		<!-- ESTA LÍNEA es la que faltaba: -->
 		<dependency>

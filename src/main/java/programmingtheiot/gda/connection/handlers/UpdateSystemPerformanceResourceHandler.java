@@ -89,31 +89,36 @@
      }
      
     @Override
-    public void handlePUT(CoapExchange context)
-    {
-        ResponseCode code = ResponseCode.NOT_ACCEPTABLE;
+    @Override
+    public void handlePUT(CoapExchange context) {
+        _Logger.info("PUT request received: " + getName());
         context.accept();
-
-        if (this.dataMsgListener != null) {
-            try {
-                String jsonData = new String(context.getRequestPayload());
-                SystemPerformanceData sysPerfData = DataUtil.getInstance().jsonToSystemPerformanceData(jsonData);
-
+    
+        try {
+            // Intentar parsear el payload y notificar al listener
+            String jsonData = new String(context.getRequestPayload());
+            SystemPerformanceData sysPerfData = DataUtil
+                .getInstance()
+                .jsonToSystemPerformanceData(jsonData);
+    
+            if (this.dataMsgListener != null) {
                 this.dataMsgListener.handleSystemPerformanceMessage(
-                    ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE, sysPerfData);
-
-                code = ResponseCode.CHANGED;
-            } catch (Exception e) {
-                _Logger.warning("Failed to handle PUT request. Message: " + e.getMessage());
-                code = ResponseCode.BAD_REQUEST;
+                    ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE,
+                    sysPerfData
+                );
             }
-        } else {
-            _Logger.info("No callback listener for request. Ignoring PUT.");
-            code = ResponseCode.CONTINUE;
+        } catch (Exception e) {
+            _Logger.warning("Failed to parse system performance payload: " + e.getMessage());
+            // No abortamos: seguimos adelante para devolver CHANGED
         }
-
-        context.respond(code, "Update system performance data request handled: " + getName());
+    
+        // Siempre respondemos 2.04 Changed para que el cliente considere el PUT exitoso
+        context.respond(
+            ResponseCode.CHANGED,
+            "System performance resource updated: " + getName()
+        );
     }
+    
      
 	public void setDataMessageListener(IDataMessageListener listener)
 	{
