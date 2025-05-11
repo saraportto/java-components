@@ -89,7 +89,6 @@
      }
      
     @Override
-    @Override
     public void handlePUT(CoapExchange context) {
         _Logger.info("PUT request received: " + getName());
         context.accept();
