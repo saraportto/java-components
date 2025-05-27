@@ -183,9 +183,14 @@ public class DeviceDataManager implements IDataMessageListener
 			}
 	}
 	
+	@Override
 	public void setActuatorDataListener(String name, IActuatorDataListener listener)
 	{
+		if (listener != null) {
+			this.actuatorDataListener = listener;
+		}
 	}
+	
 
 	public void startManager() {
 
@@ -312,8 +317,17 @@ public class DeviceDataManager implements IDataMessageListener
 
 	private void handleIncomingDataAnalysis(ResourceNameEnum resourceName, ActuatorData data)
 	{
-    	_Logger.fine("handleIncomingDataAnalysis called for ActuatorData.");
+		_Logger.info("Analyzing incoming actuator data: " + data.getName());
+	
+		if (data.isResponseFlagEnabled()) {
+		// TODO: implement this lab10
+		} else {
+			if (this.actuatorDataListener != null) {
+				this.actuatorDataListener.onActuatorDataUpdate(data);
+			}
+		}
 	}
+	
 
 	private void handleIncomingDataAnalysis(ResourceNameEnum resourceName, SystemStateData data)
 	{

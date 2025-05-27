@@ -24,6 +24,9 @@ import programmingtheiot.common.IDataMessageListener;
 import programmingtheiot.common.ResourceNameEnum;
 import programmingtheiot.gda.connection.*;
 
+import programmingtheiot.gda.connection.CoapServerGateway;
+
+
 /**
  * This test case class contains very basic integration tests for
  * CoapServerGateway. It should not be considered complete,
@@ -32,94 +35,41 @@ import programmingtheiot.gda.connection.*;
  * environment.
  *
  */
-public class CoapServerGatewayTest
-{
-	// static
-	
-	public static final int DEFAULT_TIMEOUT = 300 * 1000;
-	public static final boolean USE_DEFAULT_RESOURCES = true;
-	
-	private static final Logger _Logger =
-		Logger.getLogger(CoapServerGatewayTest.class.getName());
-	
-	
-	// member var's
-	
-	private CoapServerGateway csg = null;
-	private IDataMessageListener dml = null;
-	
-	
-	// test setup methods
-	
-	/**
-	 * @throws java.lang.Exception
-	 */
-	@Before
-	public void setUp() throws Exception
-	{
-	}
-	
-	/**
-	 * @throws java.lang.Exception
-	 */
-	@After
-	public void tearDown() throws Exception
-	{
-	}
-	
-	
-	// test methods
-	
-	/**
-	 * 
-	 */
-	@Test
-	public void testRunSimpleCoapServerGatewayIntegration()
-	{
-		try {
-			String url =
-				ConfigConst.DEFAULT_COAP_PROTOCOL + "://" + ConfigConst.DEFAULT_HOST + ":" + ConfigConst.DEFAULT_COAP_PORT;
-			
-			this.csg = new CoapServerGateway(new DefaultDataMessageListener());
-			this.csg.startServer();
-			
-			Thread.sleep(5000);
-			
-			CoapClient clientConn = new CoapClient(url);
-			
-			Set<WebLink> wlSet = clientConn.discover();
-				
-			if (wlSet != null) {
-				for (WebLink wl : wlSet) {
-					_Logger.info(" --> WebLink: " + wl.getURI() + ". Attributes: " + wl.getAttributes());
-				}
-			}
-			
-			// execute some simple get requests
-			
-			/*
-			 * NOTE: Change these to suit your own environment.
-			 */
-			
-			clientConn.setURI(
-				url + "/" + ConfigConst.PRODUCT_NAME);
-			clientConn.get();
-			
-			clientConn.setURI(
-				url + "/" + ConfigConst.PRODUCT_NAME + "/" + ConfigConst.CONSTRAINED_DEVICE);
-			clientConn.get();
-			
-			clientConn.setURI(
-				url + "/" + ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE.getResourceName());
-			clientConn.get();
-			
-			// wait for 2 min's (so other app tests can run)
-			Thread.sleep(120000L);
-			
-			this.csg.stopServer();
-		} catch (Exception e) {
-			// ignore
-		}
-	}
-	
-}
+
+ public class CoapServerGatewayTest
+ {
+	 private static final Logger _Logger = Logger.getLogger(CoapServerGatewayTest.class.getName());
+	 private static final int DEFAULT_TIMEOUT = 120000; // 2 minutos
+ 
+	 private CoapServerGateway csg = null;
+ 
+	 @Test
+	 public void testRunSimpleCoapServerGatewayIntegration()
+	 {
+		 try {
+			 String url = "coap://localhost:5683";
+ 
+			 // Crear e iniciar el servidor
+			 this.csg = new CoapServerGateway(); // Constructor sin args: crea recursos por defecto
+			 this.csg.startServer();
+ 
+			 // Crear cliente y ejecutar descubrimiento
+			 CoapClient clientConn = new CoapClient(url);
+			 Set<WebLink> wlSet = clientConn.discover();
+ 
+			 if (wlSet != null) {
+				 for (WebLink wl : wlSet) {
+					 _Logger.info(" --> WebLink: " + wl.getURI() + ". Attributes: " + wl.getAttributes());
+				 }
+			 }
+ 
+			 // Pausar para permitir pruebas adicionales manuales (GET, POST con cf-client)
+			 Thread.sleep(DEFAULT_TIMEOUT);
+ 
+			 this.csg.stopServer();
+		 } catch (Exception e) {
+			 _Logger.severe("Exception during CoAP integration test: " + e.getMessage());
+			 e.printStackTrace();
+		 }
+	 }
+ }
