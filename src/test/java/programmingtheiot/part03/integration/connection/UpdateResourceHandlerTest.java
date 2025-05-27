@@ -35,25 +35,34 @@ public class UpdateResourceHandlerTest {
     public static void setUpBeforeClass() throws Exception {
         dataMsgListener = new DefaultDataMessageListener();
         _ServerGateway = new CoapServerGateway(dataMsgListener);
-
+    
+        // Crear y configurar los handlers con el listener
+        UpdateSystemPerformanceResourceHandler perfHandler =
+            new UpdateSystemPerformanceResourceHandler(ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE.getResourceType());
+        perfHandler.setDataMessageListener(dataMsgListener);
+    
+        UpdateTelemetryResourceHandler telemetryHandler =
+            new UpdateTelemetryResourceHandler(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE.getResourceType());
+        telemetryHandler.setDataMessageListener(dataMsgListener);
+    
         // Registrar recursos en el servidor CoAP
         _ServerGateway.addResource(
             ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE,
             ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE.getResourceName(),
-            new UpdateSystemPerformanceResourceHandler(ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE.getResourceType())
+            perfHandler
         );
         
         _ServerGateway.addResource(
             ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE,
             ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE.getResourceName(),
-            new UpdateTelemetryResourceHandler(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE.getResourceType())
+            telemetryHandler
         );
-
+    
         assertTrue("No se pudo iniciar el servidor CoAP",
             _ServerGateway.startServer()
         );
     }
-
+    
     @AfterClass
     public static void tearDownAfterClass() throws Exception {
         assertTrue("No se pudo detener el servidor CoAP",
