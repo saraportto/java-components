@@ -8,6 +8,8 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import programmingtheiot.gda.connection.handlers.UpdateSystemPerformanceResourceHandler;
+import programmingtheiot.gda.connection.handlers.UpdateTelemetryResourceHandler;
 
 import programmingtheiot.common.DefaultDataMessageListener;
 import programmingtheiot.data.DataUtil;
@@ -35,8 +37,17 @@ public class UpdateResourceHandlerTest {
         _ServerGateway = new CoapServerGateway(dataMsgListener);
 
         // Registrar recursos en el servidor CoAP
-        _ServerGateway.addResource(ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE);
-        _ServerGateway.addResource(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE);
+        _ServerGateway.addResource(
+            ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE,
+            ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE.getResourceName(),
+            new UpdateSystemPerformanceResourceHandler(ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE.getResourceType())
+        );
+        
+        _ServerGateway.addResource(
+            ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE,
+            ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE.getResourceName(),
+            new UpdateTelemetryResourceHandler(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE.getResourceType())
+        );
 
         assertTrue("No se pudo iniciar el servidor CoAP",
             _ServerGateway.startServer()
