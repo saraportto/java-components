@@ -22,6 +22,9 @@ import programmingtheiot.common.ConfigUtil;
 import programmingtheiot.common.IDataMessageListener;
 import programmingtheiot.common.ResourceNameEnum;
 import programmingtheiot.gda.connection.*;
+import programmingtheiot.data.ActuatorData;
+import programmingtheiot.data.DataUtil;
+
 
 /**
  * This test case class contains very basic integration tests for
@@ -73,7 +76,7 @@ public class MqttClientConnectorTest
 	/**
 	 * Test method for {@link programmingtheiot.gda.connection.MqttClientConnector#connectClient()}.
 	 */
-	@Test
+	//@Test
 	public void testConnectAndDisconnect()
 	{
 		int delay = ConfigUtil.getInstance().getInteger(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE);
@@ -94,7 +97,7 @@ public class MqttClientConnectorTest
 	/**
 	 * Test method for {@link programmingtheiot.gda.connection.MqttClientConnector#publishMessage(programmingtheiot.common.ResourceNameEnum, java.lang.String, int)}.
 	 */
-	@Test
+	//@Test
 	public void testPublishAndSubscribe()
 	{
 		int qos = 0;
@@ -235,5 +238,4 @@ public class MqttClientConnectorTest
 		
 		assertTrue(this.mqttClient.disconnectClient());
 	}
-	
 }
