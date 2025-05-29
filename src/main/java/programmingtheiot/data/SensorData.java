@@ -64,6 +64,10 @@ public class SensorData extends BaseIotData implements Serializable
 		
 		sb.append(',');
 		sb.append(ConfigConst.VALUE_PROP).append('=').append(this.getValue());
+		sb.append(',');
+		sb.append("sensorType").append('=').append(this.getSensorType());
+		sb.append(',');
+		sb.append("description").append('=').append(this.getDescription());
 		
 		return sb.toString();
 	}
@@ -79,6 +83,9 @@ public class SensorData extends BaseIotData implements Serializable
 		if (data instanceof SensorData) {
 			SensorData sData = (SensorData) data;
 			this.setValue(sData.getValue());
+			this.setSensorType(sData.getSensorType());
+			this.setDescription(sData.getDescription());
+
 		}
 	}
 }

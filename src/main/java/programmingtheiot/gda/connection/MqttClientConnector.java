@@ -65,11 +65,12 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 	private boolean enableAutoReconnect = true;
 
 	private IConnectionListener connListener = null;
+	private boolean useCloudGatewayConfig = false;
 
 	private static final int DEFAULT_QOS = 1;
 
-	
-	
+
+
 	// constructors
 	
 	/**
@@ -82,17 +83,38 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 		super();
 		initClientParameters(ConfigConst.MQTT_GATEWAY_SERVICE);
 	 }
+
+	 public MqttClientConnector(boolean useCloudGatewayConfig) {
+		this(useCloudGatewayConfig ? ConfigConst.CLOUD_GATEWAY_SERVICE : null);
+	}
+	
+	public MqttClientConnector(String cloudGatewayConfigSectionName) {
+		super();
+	
+		if (cloudGatewayConfigSectionName != null && cloudGatewayConfigSectionName.trim().length() > 0) {
+			this.useCloudGatewayConfig = true;
+			initClientParameters(cloudGatewayConfigSectionName);
+		} else {
+			this.useCloudGatewayConfig = false;
+			initClientParameters(ConfigConst.MQTT_GATEWAY_SERVICE);
+		}
+	}
+	
 	
 	// public methods
 
 	@Override
-	public boolean setConnectionListener(IConnectionListener listener) {
+	public boolean setConnectionListener(IConnectionListener listener)
+	{
 		if (listener != null) {
+			_Logger.info("Setting connection listener.");
 			this.connListener = listener;
 			return true;
+		} else {
+			_Logger.warning("No connection listener specified. Ignoring.");
 		}
 		return false;
-}
+	}
 
 	
 	@Override
@@ -119,6 +141,8 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 		}
 	
 		return false;
+		Thread.sleep(2000);  // Espera 2 segundos para conexiones async
+
 	}
 	
 
@@ -137,6 +161,8 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 			_Logger.warning("Client is not connected. Disconnect skipped.");
 		}
 		return false;
+		Thread.sleep(2000);  // Espera 2 segundos para conexiones async
+
 	}
 
 	//@Override
@@ -151,20 +177,27 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 			return false;
 		}
 	
-		if (msg == null || msg.length() == 0) {
+		if (payload == null || payload.length == 0) {
 			_Logger.warning("Message is null or empty. Unable to publish message: " + this.brokerAddr);
 			return false;
 		}
 	
 		if (qos < 0 || qos > 2) {
-			qos = DEFAULT_QOS;
+			_Logger.warning("Invalid QoS. Using default. QoS requested: " + qos);
+			qos = ConfigConst.DEFAULT_QOS;
 		}
 	
 		try {
-			byte[] payload = msg.getBytes();
-			MqttMessage mqttMsg = new MqttMessage(payload);
+			if (!this.mqttClient.isConnected()) {
+				_Logger.warning("MQTT client not connected. Attempting to reconnect...");
+				connectClient();
+			}
+
+			MqttMessage mqttMsg = new MqttMessage();
 			mqttMsg.setQos(qos);
-			this.mqttClient.publish(topicName.getResourceName(), mqttMsg);
+			mqttMsg.setPayload(payload);
+
+			this.mqttClient.publish(topicName, mqttMsg);
 			return true;
 		} catch (Exception e) {
 			_Logger.log(Level.SEVERE, "Failed to publish message to topic: " + topicName, e);
@@ -172,48 +205,29 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 	
 		return false;
 	}
+
 	
 
 	@Override
 	public boolean subscribeToTopic(ResourceNameEnum topicName, int qos) {
 		if (topicName == null) {
-			_Logger.warning("Resource is null. Unable to subscribe to topic: " + this.brokerAddr);
+			_Logger.warning("Topic is null.");
 			return false;
 		}
-	
-		if (qos < 0 || qos > 2) {
-			qos = DEFAULT_QOS;
-		}
-	
-		try {
-			this.mqttClient.subscribe(topicName.getResourceName(), qos);
-			_Logger.info("Successfully subscribed to topic: " + topicName.getResourceName());
-			return true;
-		} catch (Exception e) {
-			_Logger.log(Level.SEVERE, "Failed to subscribe to topic: " + topicName, e);
-		}
-	
-		return false;
+		return subscribeToTopic(topicName.getResourceName(), qos);
 	}
+
 	
 
 	@Override
 	public boolean unsubscribeFromTopic(ResourceNameEnum topicName) {
 		if (topicName == null) {
-			_Logger.warning("Resource is null. Unable to unsubscribe from topic: " + this.brokerAddr);
+			_Logger.warning("Topic is null.");
 			return false;
 		}
-	
-		try {
-			this.mqttClient.unsubscribe(topicName.getResourceName());
-			_Logger.info("Successfully unsubscribed from topic: " + topicName.getResourceName());
-			return true;
-		} catch (Exception e) {
-			_Logger.log(Level.SEVERE, "Failed to unsubscribe from topic: " + topicName, e);
-		}
-	
-		return false;
+		return unsubscribeFromTopic(topicName.getResourceName());
 	}
+	
 	
 	
 	@Override
@@ -235,16 +249,17 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 		_Logger.info("MQTT connection successful (is reconnect = " + reconnect + "). Broker: " + serverURI);
 
 		int qos = ConfigConst.DEFAULT_QOS;
-		// suscripciones CDA
-		this.subscribeToTopic(ResourceNameEnum.CDA_ACTUATOR_RESPONSE_RESOURCE, qos);
-		this.subscribeToTopic(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE, qos);
-		this.subscribeToTopic(ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE, qos);
 
+		if (!this.useCloudGatewayConfig) {
+			this.subscribeToTopic(ResourceNameEnum.CDA_ACTUATOR_RESPONSE_RESOURCE, qos);
+			this.subscribeToTopic(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE, qos);
+			this.subscribeToTopic(ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE, qos);
+		}
 
 		if (this.connListener != null) {
 			this.connListener.onConnect();
 		}
-	}
+}
 
 	@Override
 	public void connectionLost(Throwable t)
@@ -292,6 +307,69 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 			_Logger.log(Level.SEVERE, "Exception occurred while processing incoming message.", e);
 		}
 	}
+
+
+
+	// protected methods
+
+	protected boolean publishMessage(String topicName, byte[] payload, int qos) {
+		if (topicName == null || payload == null || payload.length == 0) {
+			_Logger.warning("Invalid topic or payload.");
+			return false;
+		}
+		if (qos < 0 || qos > 2) qos = DEFAULT_QOS;
+	
+		try {
+			MqttMessage mqttMsg = new MqttMessage(payload);
+			mqttMsg.setQos(qos);
+			this.mqttClient.publish(topicName, mqttMsg);
+			return true;
+		} catch (Exception e) {
+			_Logger.log(Level.SEVERE, "Failed to publish message to topic: " + topicName, e);
+		}
+		return false;
+	}
+	
+	protected boolean subscribeToTopic(String topicName, int qos) {
+		return subscribeToTopic(topicName, qos, null);
+	}
+	
+	protected boolean subscribeToTopic(String topicName, int qos, org.eclipse.paho.client.mqttv3.IMqttMessageListener listener) {
+		if (topicName == null) {
+			_Logger.warning("Topic is null. Unable to subscribe.");
+			return false;
+		}
+		if (qos < 0 || qos > 2) qos = DEFAULT_QOS;
+	
+		try {
+			if (listener != null) {
+				this.mqttClient.subscribe(topicName, qos, listener);
+				_Logger.info("Subscribed to topic with listener: " + topicName);
+			} else {
+				this.mqttClient.subscribe(topicName, qos);
+				_Logger.info("Subscribed to topic: " + topicName);
+			}
+			return true;
+		} catch (Exception e) {
+			_Logger.log(Level.SEVERE, "Failed to subscribe to topic: " + topicName, e);
+		}
+		return false;
+	}
+	
+	protected boolean unsubscribeFromTopic(String topicName) {
+		if (topicName == null) {
+			_Logger.warning("Topic is null. Unable to unsubscribe.");
+			return false;
+		}
+		try {
+			this.mqttClient.unsubscribe(topicName);
+			_Logger.info("Unsubscribed from topic: " + topicName);
+			return true;
+		} catch (Exception e) {
+			_Logger.log(Level.SEVERE, "Failed to unsubscribe from topic: " + topicName, e);
+		}
+		return false;
+	}	
 	
 
 	// private methods
@@ -303,37 +381,37 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 	 * the MQTT client configuration parameters.
 	 */
 	private void initClientParameters(String configSectionName)
-{
-	ConfigUtil configUtil = ConfigUtil.getInstance();
+	{
+		ConfigUtil configUtil = ConfigUtil.getInstance();
 
-	this.host = configUtil.getProperty(configSectionName, ConfigConst.HOST_KEY, ConfigConst.DEFAULT_HOST);
-	this.port = configUtil.getInteger(configSectionName, ConfigConst.PORT_KEY, ConfigConst.DEFAULT_MQTT_PORT);
-	this.brokerKeepAlive = configUtil.getInteger(configSectionName, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE);
-	this.enableEncryption = configUtil.getBoolean(configSectionName, ConfigConst.ENABLE_CRYPT_KEY);
-	this.pemFileName = configUtil.getProperty(configSectionName, ConfigConst.CERT_FILE_KEY);
-	this.useAsyncClient = configUtil.getBoolean(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.USE_ASYNC_CLIENT_KEY);
+		this.host = configUtil.getProperty(configSectionName, ConfigConst.HOST_KEY, ConfigConst.DEFAULT_HOST);
+		this.port = configUtil.getInteger(configSectionName, ConfigConst.PORT_KEY, ConfigConst.DEFAULT_MQTT_PORT);
+		this.brokerKeepAlive = configUtil.getInteger(configSectionName, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE);
+		this.enableEncryption = configUtil.getBoolean(configSectionName, ConfigConst.ENABLE_CRYPT_KEY);
+		this.pemFileName = configUtil.getProperty(configSectionName, ConfigConst.CERT_FILE_KEY);
+		this.useAsyncClient = configUtil.getBoolean(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.USE_ASYNC_CLIENT_KEY);
 
-	this.clientID = configUtil.getProperty(ConfigConst.GATEWAY_DEVICE, ConfigConst.DEVICE_LOCATION_ID_KEY, MqttClient.generateClientId());
+		this.clientID = configUtil.getProperty(ConfigConst.GATEWAY_DEVICE, ConfigConst.DEVICE_LOCATION_ID_KEY, MqttClient.generateClientId());
 
-	this.persistence = new MemoryPersistence();
-	this.connOpts = new MqttConnectOptions();
-	this.connOpts.setKeepAliveInterval(this.brokerKeepAlive);
-	this.connOpts.setCleanSession(this.useCleanSession);
-	this.connOpts.setAutomaticReconnect(this.enableAutoReconnect);
+		this.persistence = new MemoryPersistence();
+		this.connOpts = new MqttConnectOptions();
+		this.connOpts.setKeepAliveInterval(this.brokerKeepAlive);
+		this.connOpts.setCleanSession(this.useCleanSession);
+		this.connOpts.setAutomaticReconnect(this.enableAutoReconnect);
 
-	if (this.enableEncryption) {
-		initSecureConnectionParameters(configSectionName);
+		if (this.enableEncryption) {
+			initSecureConnectionParameters(configSectionName);
+		}
+
+		if (configUtil.hasProperty(configSectionName, ConfigConst.CRED_FILE_KEY)) {
+			initCredentialConnectionParameters(configSectionName);
+		}
+
+		this.brokerAddr = this.protocol + "://" + this.host + ":" + this.port;
+
+		_Logger.info("Using URL for broker conn: " + this.brokerAddr);
 	}
-
-	if (configUtil.hasProperty(configSectionName, ConfigConst.CRED_FILE_KEY)) {
-		initCredentialConnectionParameters(configSectionName);
-	}
-
-	this.brokerAddr = this.protocol + "://" + this.host + ":" + this.port;
-
-	_Logger.info("Using URL for broker conn: " + this.brokerAddr);
-}
-	
+		
 	/**
 	 * Called by {@link #initClientParameters(String)} to load credentials.
 	 * 
@@ -341,27 +419,27 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 	 * the MQTT client configuration parameters.
 	 */
 	private void initCredentialConnectionParameters(String configSectionName)
-{
-	ConfigUtil configUtil = ConfigUtil.getInstance();
+	{
+		ConfigUtil configUtil = ConfigUtil.getInstance();
 
-	try {
-		_Logger.info("Checking if credentials file exists and is loadable...");
+		try {
+			_Logger.info("Checking if credentials file exists and is loadable...");
 
-		Properties props = configUtil.getCredentials(configSectionName);
+			Properties props = configUtil.getCredentials(configSectionName);
 
-		if (props != null) {
-			this.connOpts.setUserName(props.getProperty(ConfigConst.USER_NAME_TOKEN_KEY, ""));
-			this.connOpts.setPassword(props.getProperty(ConfigConst.USER_AUTH_TOKEN_KEY, "").toCharArray());
+			if (props != null) {
+				this.connOpts.setUserName(props.getProperty(ConfigConst.USER_NAME_TOKEN_KEY, ""));
+				this.connOpts.setPassword(props.getProperty(ConfigConst.USER_AUTH_TOKEN_KEY, "").toCharArray());
 
-			_Logger.info("Credentials now set.");
-		} else {
-			_Logger.warning("No credentials are set.");
+				_Logger.info("Credentials now set.");
+			} else {
+				_Logger.warning("No credentials are set.");
+			}
+		} catch (Exception e) {
+			_Logger.log(Level.WARNING, "Credential file non-existent. Disabling auth requirement.");
 		}
-	} catch (Exception e) {
-		_Logger.log(Level.WARNING, "Credential file non-existent. Disabling auth requirement.");
 	}
-}
-	
+		
 	/**
 	 * Called by {@link #initClientParameters(String)} to enable encryption.
 	 * 
@@ -369,37 +447,37 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 	 * the MQTT client configuration parameters.
 	 */
 	private void initSecureConnectionParameters(String configSectionName)
-{
-	ConfigUtil configUtil = ConfigUtil.getInstance();
+	{
+		ConfigUtil configUtil = ConfigUtil.getInstance();
 
-	try {
-		_Logger.info("Configuring TLS...");
+		try {
+			_Logger.info("Configuring TLS...");
 
-		if (this.pemFileName != null) {
-			File file = new File(this.pemFileName);
+			if (this.pemFileName != null) {
+				File file = new File(this.pemFileName);
 
-			if (file.exists()) {
-				_Logger.info("PEM file valid. Using secure connection: " + this.pemFileName);
-			} else {
-				this.enableEncryption = false;
+				if (file.exists()) {
+					_Logger.info("PEM file valid. Using secure connection: " + this.pemFileName);
+				} else {
+					this.enableEncryption = false;
 
-				_Logger.log(Level.WARNING, "PEM file invalid. Using insecure connection: " + this.pemFileName, new Exception());
-				return;
+					_Logger.log(Level.WARNING, "PEM file invalid. Using insecure connection: " + this.pemFileName, new Exception());
+					return;
+				}
 			}
+
+			SSLSocketFactory sslFactory =
+				SimpleCertManagementUtil.getInstance().loadCertificate(this.pemFileName);
+
+			this.connOpts.setSocketFactory(sslFactory);
+
+			this.port = configUtil.getInteger(configSectionName, ConfigConst.SECURE_PORT_KEY, ConfigConst.DEFAULT_MQTT_SECURE_PORT);
+			this.protocol = ConfigConst.DEFAULT_MQTT_SECURE_PROTOCOL;
+
+			_Logger.info("TLS enabled.");
+		} catch (Exception e) {
+			_Logger.log(Level.SEVERE, "Failed to initialize secure MQTT connection. Using insecure connection.", e);
+			this.enableEncryption = false;
 		}
-
-		SSLSocketFactory sslFactory =
-			SimpleCertManagementUtil.getInstance().loadCertificate(this.pemFileName);
-
-		this.connOpts.setSocketFactory(sslFactory);
-
-		this.port = configUtil.getInteger(configSectionName, ConfigConst.SECURE_PORT_KEY, ConfigConst.DEFAULT_MQTT_SECURE_PORT);
-		this.protocol = ConfigConst.DEFAULT_MQTT_SECURE_PROTOCOL;
-
-		_Logger.info("TLS enabled.");
-	} catch (Exception e) {
-		_Logger.log(Level.SEVERE, "Failed to initialize secure MQTT connection. Using insecure connection.", e);
-		this.enableEncryption = false;
 	}
-}
 }

@@ -6,36 +6,34 @@
  * and designed to be modified by the student as needed.
  */ 
 
-package programmingtheiot.gda.app;
+ package programmingtheiot.gda.app;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
-
-import programmingtheiot.common.ConfigConst;
-import programmingtheiot.common.ConfigUtil;
-import programmingtheiot.common.IActuatorDataListener;
-import programmingtheiot.common.IDataMessageListener;
-import programmingtheiot.common.ResourceNameEnum;
-
-import programmingtheiot.data.ActuatorData;
-import programmingtheiot.data.DataUtil;
-import programmingtheiot.data.SensorData;
-import programmingtheiot.data.SystemPerformanceData;
-import programmingtheiot.data.SystemStateData;
-
-import programmingtheiot.gda.connection.CloudClientConnector;
-import programmingtheiot.gda.connection.CoapServerGateway;
-import programmingtheiot.gda.connection.IPersistenceClient;
-import programmingtheiot.gda.connection.IPubSubClient;
-import programmingtheiot.gda.connection.IRequestResponseClient;
-import programmingtheiot.gda.connection.MqttClientConnector;
-import programmingtheiot.gda.connection.RedisPersistenceAdapter;
-import programmingtheiot.gda.connection.SmtpClientConnector;
-
-import programmingtheiot.gda.system.SystemPerformanceManager;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import java.time.OffsetDateTime;
+ import java.time.temporal.ChronoUnit;
+ 
+ import programmingtheiot.common.ConfigConst;
+ import programmingtheiot.common.ConfigUtil;
+ import programmingtheiot.common.IActuatorDataListener;
+ import programmingtheiot.common.IDataMessageListener;
+ import programmingtheiot.common.ResourceNameEnum;
+ 
+ import programmingtheiot.data.ActuatorData;
+ import programmingtheiot.data.DataUtil;
+ import programmingtheiot.data.SensorData;
+ import programmingtheiot.data.SystemPerformanceData;
+ import programmingtheiot.data.SystemStateData;
+ import programmingtheiot.data.BaseIotData;
+ 
+ import programmingtheiot.gda.connection.CloudClientConnector;
+ import programmingtheiot.gda.connection.CoapServerGateway;
+ import programmingtheiot.gda.connection.IPersistenceClient;
+ import programmingtheiot.gda.connection.IPubSubClient;
+ import programmingtheiot.gda.connection.IRequestResponseClient;
+ import programmingtheiot.gda.connection.MqttClientConnector;
+ import programmingtheiot.gda.connection.SmtpClientConnector;
+ import programmingtheiot.gda.system.SystemPerformanceManager;
 
 /**
  * Shell representation of class for student implementation.
@@ -48,7 +46,6 @@ public class DeviceDataManager implements IDataMessageListener
 	private static final Logger _Logger =
 		Logger.getLogger(DeviceDataManager.class.getName());
 
-	private SystemPerformanceManager sysPerfManager = null; // Instance of SystemPerformanceManager
 	
 	// private var's
 	
@@ -61,7 +58,7 @@ public class DeviceDataManager implements IDataMessageListener
 	
 	private IActuatorDataListener actuatorDataListener = null;
 	private IPubSubClient mqttClient = null;
-	private IPubSubClient cloudClient = null;
+	//private IPubSubClient cloudClient = null;
 	private IPersistenceClient persistenceClient = null;
 	private IRequestResponseClient smtpClient = null;
 	private CoapServerGateway coapServer = null;
@@ -81,6 +78,9 @@ public class DeviceDataManager implements IDataMessageListener
 	private float nominalHumiditySetting = 40.0f;
 	private float triggerHumidifierFloor = 30.0f;
 	private float triggerHumidifierCeiling = 50.0f;
+
+	private CloudClientConnector cloudClient = null;
+	
 
 	//private MqttClientConnector mqttClient; 
 
@@ -164,38 +164,37 @@ public class DeviceDataManager implements IDataMessageListener
 	
 	
 	// public methods
-	
+
 	@Override
 	public boolean handleActuatorCommandResponse(ResourceNameEnum resourceName, ActuatorData data)
 	{
+		_Logger.info("Handling actuator command response for resource: " + resourceName.toString());
 		if (data != null) {
-			_Logger.info("Handling actuator response: " + data.getName());
-			
-			//this.handleIncomingDataAnalysis(resourceName, data);
-
+			_Logger.info("Handling actuator command response");
 			if (data.hasError()) {
-				_Logger.warning("Error flag set for ActuatorData instance.");
+				_Logger.log(Level.WARNING, "Received actuator with error of status code: {0}", data.getStatusCode());
 			}
 			return true;
-
-		} else {
-			return false;
-		}	
-}
-
+		} 
+		return false;	
+	}
+	
 	@Override
 	public boolean handleActuatorCommandRequest(ResourceNameEnum resourceName, ActuatorData data)
 	{
-		return false;
-	}
-
-	@Override
-	public boolean handleIncomingMessage(ResourceNameEnum resourceName, String msg)
-	{
-		if (msg != null) {
-			_Logger.info("Handling incoming generic message: " + msg);
+		if (data != null) {
+			_Logger.log(
+				Level.FINE,
+				"Actuator request received: {0}. Message: {1}",
+				new Object[] {resourceName.getResourceName(), Integer.valueOf((data.getCommand()))});
+	
+			if (data.hasError()) {
+				_Logger.warning("Error flag set for ActuatorData instance.");
+			}
+	
+			this.sendActuatorCommandtoCda(resourceName, data);
+	
 			return true;
-
 		} else {
 			return false;
 		}
@@ -227,20 +226,26 @@ public class DeviceDataManager implements IDataMessageListener
 		}
 	}
 
+
+
 	@Override
 	public boolean handleSystemPerformanceMessage(ResourceNameEnum resourceName, SystemPerformanceData data)
 	{
 		if (data != null) {
-				_Logger.info("Handling system performance message: " + data.getName());
-				
-				if (data.hasError()) {
-					_Logger.warning("Error flag set for SystemPerformanceData instance.");
-				}
-				return true;
-
-			} else {
-				return false;
+			_Logger.info("Handling system performance message: " + data.getName());
+	
+			if (data.hasError()) {
+				_Logger.warning("Error flag set for SystemPerformanceData instance.");
 			}
+	
+			if (this.cloudClient != null) {
+				this.cloudClient.sendEdgeDataToCloud(resourceName, data);
+			}
+	
+			return true;
+		} else {
+			return false;
+		}
 	}
 	
 	@Override
@@ -282,6 +287,16 @@ public class DeviceDataManager implements IDataMessageListener
 				_Logger.severe("Failed to start CoAP server. Check log file for details.");
 			}
 		}
+
+		if (this.enableCloudClient && this.cloudClient != null) {
+			this.cloudClient.setDataMessageListener(this);
+			if (this.cloudClient.connectClient()) {
+				_Logger.info("Connected to CloudClient.");
+			} else {
+				_Logger.warning("Failed to connect to CloudClient.");
+			}
+		}
+		
 	}
 
 	public void stopManager() {
@@ -316,7 +331,53 @@ public class DeviceDataManager implements IDataMessageListener
 				_Logger.severe("Failed to stop CoAP server. Check log file for details.");
 			}
 		}
+
+		if (this.enableCloudClient && this.cloudClient != null) {
+			if (this.cloudClient.disconnectClient()) {
+				_Logger.info("Disconnected from CloudClient.");
+			} else {
+				_Logger.warning("Failed to disconnect from CloudClient.");
+			}
+		}
+		
 	}
+
+	@Override
+	public boolean handleIncomingMessage(ResourceNameEnum resourceName, String msg)
+	{
+		if (resourceName != null && msg != null) {
+			try {
+				if (resourceName == ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE) {
+					_Logger.info("Handling incoming ActuatorData message: " + msg);
+
+					ActuatorData ad = DataUtil.getInstance().jsonToActuatorData(msg);
+					String jsonData = DataUtil.getInstance().actuatorDataToJson(ad);
+
+					if (this.mqttClient != null) {
+						int qos = ConfigUtil.getInstance().getInteger(
+							ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.DEFAULT_QOS_KEY, ConfigConst.DEFAULT_QOS);
+						_Logger.fine("Publishing data to MQTT broker: " + jsonData);
+						return this.mqttClient.publishMessage(resourceName, jsonData, qos);
+					}
+					// TODO: If the GDA is hosting a CoAP server (or a CoAP client that
+					// will connect to the CDA's CoAP server), you can add that logic here
+					// in place of the MQTT client or in addition
+
+				} else {
+					_Logger.warning("Failed to parse incoming message. Unknown type: " + msg);
+
+					return false;
+				}
+			} catch (Exception e) {
+				_Logger.log(Level.WARNING, "Failed to process incoming message for resource: " + resourceName, e);
+			}
+		} else {
+			_Logger.warning("Incoming message has no data. Ignoring for resource: " + resourceName);
+		}
+
+		return false;
+	}
+
 	
 	// private methods
 	
@@ -365,8 +426,8 @@ public class DeviceDataManager implements IDataMessageListener
 		}
 	
 		if (this.enableCloudClient) {
-			// TODO: implement this in Lab Module 10
-		}
+			this.cloudClient = new CloudClientConnector();
+		}		
 	
 		if (this.enablePersistenceClient) {
 			// TODO: implement this as an optional exercise in Lab Module 5
@@ -386,61 +447,75 @@ public class DeviceDataManager implements IDataMessageListener
 	{
 		_Logger.fine("handleIncomingDataAnalysis called for SystemStateData.");
 	}
-
-	private boolean handleUpstreamTransmission(ResourceNameEnum resourceName, String jsonData, int qos)
-	{
-		_Logger.fine("handleUpstreamTransmission called.");
-		return false;
-	}
-
-	private void handleHumiditySensorAnalysis(ResourceNameEnum resource, SensorData data)
-	{
-		_Logger.fine("Analyzing humidity data: " + data.getValue());
 	
+
+	private void handleHumiditySensorAnalysis(ResourceNameEnum resource, SensorData data) {
+		_Logger.info("Analyzing humidity data from CDA: " + data.getLocationID() + ". Value: " + data.getValue());
+
 		boolean isLow = data.getValue() < this.triggerHumidifierFloor;
 		boolean isHigh = data.getValue() > this.triggerHumidifierCeiling;
-	
-		if (!handleHumidityChangeOnDevice || (!isLow && !isHigh)) {
-			return;
+
+		if (isLow || isHigh) {
+			_Logger.info("Humidity data from CDA exceeds nominal range.");
+
+			if (this.latestHumiditySensorData == null) {
+				this.latestHumiditySensorData = data;
+				this.latestHumiditySensorTimeStamp = getDateTimeFromData(data);
+
+				_Logger.info(
+					"Starting humidity nominal exception timer. Waiting for seconds: " +
+					this.humidityMaxTimePastThreshold);
+				return;
+			} else {
+				OffsetDateTime curHumiditySensorTimeStamp = getDateTimeFromData(data);
+				long diffSeconds = ChronoUnit.SECONDS.between(this.latestHumiditySensorTimeStamp, curHumiditySensorTimeStamp);
+
+				_Logger.info("Checking Humidity value exception time delta: " + diffSeconds);
+
+				if (diffSeconds >= this.humidityMaxTimePastThreshold) {
+					ActuatorData ad = new ActuatorData();
+					ad.setName(ConfigConst.HUMIDIFIER_ACTUATOR_NAME);
+					ad.setLocationID(data.getLocationID());
+					ad.setTypeID(ConfigConst.HUMIDIFIER_ACTUATOR_TYPE);
+					ad.setValue(this.nominalHumiditySetting);
+
+					if (isLow) {
+						ad.setCommand(ConfigConst.ON_COMMAND);
+					} else if (isHigh) {
+						ad.setCommand(ConfigConst.OFF_COMMAND);
+					}
+
+					_Logger.info("Humidity exceptional value reached. Sending actuation event to CDA: " + ad);
+
+					this.lastKnownHumidifierCommand = ad.getCommand();
+					sendActuatorCommandtoCda(ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE, ad);
+
+					this.latestHumidifierActuatorData = ad;
+					this.latestHumiditySensorData = null;
+					this.latestHumiditySensorTimeStamp = null;
+				}
+			}
+		} else if (this.lastKnownHumidifierCommand == ConfigConst.ON_COMMAND) {
+			if (this.latestHumidifierActuatorData != null) {
+				if (data.getValue() >= this.nominalHumiditySetting) {
+					this.latestHumidifierActuatorData.setCommand(ConfigConst.OFF_COMMAND);
+
+					_Logger.info("Humidity nominal value reached. Sending OFF actuation event to CDA: " +
+						this.latestHumidifierActuatorData);
+
+					sendActuatorCommandtoCda(ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE, this.latestHumidifierActuatorData);
+
+					this.lastKnownHumidifierCommand = this.latestHumidifierActuatorData.getCommand();
+					this.latestHumidifierActuatorData = null;
+					this.latestHumiditySensorData = null;
+					this.latestHumiditySensorTimeStamp = null;
+				} else {
+					_Logger.info("Humidifier is still on. Not yet at nominal levels (OK).");
+				}
+			} else {
+				_Logger.warning("ERROR: ActuatorData for humidifier is null (shouldn't be). Can't send command.");
+			}
 		}
-	
-		OffsetDateTime now = OffsetDateTime.now();
-	
-		if (this.latestHumiditySensorData == null) {
-			this.latestHumiditySensorData = data;
-			this.latestHumiditySensorTimeStamp = now;
-			_Logger.fine("First humidity threshold crossed, timer started.");
-			return;
-		}
-	
-		long delta = ChronoUnit.SECONDS.between(this.latestHumiditySensorTimeStamp, now);
-	
-		if (delta < this.humidityMaxTimePastThreshold) {
-			_Logger.fine("Threshold condition not yet met: " + delta + "s < " + this.humidityMaxTimePastThreshold + "s.");
-			return;
-		}
-	
-		ActuatorData ad = new ActuatorData();
-		ad.setName(ConfigConst.HUMIDIFIER_ACTUATOR_NAME);
-		ad.setTypeID(ConfigConst.HUMIDIFIER_ACTUATOR_TYPE);
-		ad.setLocationID(data.getLocationID());
-		ad.setValue(this.nominalHumiditySetting);
-	
-		if (isLow) {
-			ad.setCommand(ConfigConst.ON_COMMAND);
-		} else if (isHigh) {
-			ad.setCommand(ConfigConst.OFF_COMMAND);
-		}
-	
-		this.lastKnownHumidifierCommand = ad.getCommand();
-		this.latestHumidifierActuatorData = ad;
-	
-		_Logger.info("Triggering ActuatorData command to CDA: " + ad);
-	
-		sendActuatorCommandtoCda(ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE, ad);
-	
-		this.latestHumiditySensorData = null;
-		this.latestHumiditySensorTimeStamp = null;
 	}
 
 
@@ -454,6 +529,56 @@ public class DeviceDataManager implements IDataMessageListener
 			String jsonData = DataUtil.getInstance().actuatorDataToJson(data);
 			this.mqttClient.publishMessage(resource, jsonData, ConfigConst.DEFAULT_QOS);
 		}
+	}
+
+	private boolean handleUpstreamTransmission(ResourceNameEnum resourceName, SensorData data, int qos)
+	{
+		_Logger.info("Sending Json data to cloud: " + resourceName.toString());
+		if (this.cloudClient != null) {
+			if (this.cloudClient.sendEdgeDataToCloud(resourceName, data)) {
+				_Logger.info("Published data to cloud: " + resourceName.toString());
+				return true;
+			} else {
+				_Logger.warning("Failed to publish data to cloud: " + resourceName.toString());
+			}
+		} else {
+			_Logger.warning("Cloud client is not enabled. Cannot publish data.");
+		}
+		return false;
+	}
+
+	private boolean handleUpstreamTransmission(ResourceNameEnum resourceName, SystemPerformanceData data, int qos)
+	{
+	_Logger.info("Sending Json data to cloud: " + resourceName.toString());
+	if (this.cloudClient != null) {
+		if (this.cloudClient.sendEdgeDataToCloud(resourceName, data)) {
+			_Logger.info("Published data to cloud: " + resourceName.toString());
+			return true;
+		} else {
+			_Logger.warning("Failed to publish data to cloud: " + resourceName.toString());
+		}
+	} else {
+		_Logger.warning("Cloud client is not enabled. Cannot publish data.");
+	}
+	return false;
+	}
+
+	private OffsetDateTime getDateTimeFromData(BaseIotData data)
+	{
+		OffsetDateTime odt =null;
+
+		try {
+		odt =OffsetDateTime.parse(data.getTimeStamp());
+			}catch (Exception e) {
+		_Logger.warning(
+		"Failed to extract ISO 8601 timestamp from IoT data. Using local current time.");
+
+		// TODO: this won't be accurate, but should be reasonably close, as the CDA will
+		// most likely have recently sent the data to the GDA
+		odt =OffsetDateTime.now();
+			}
+
+		return odt;
 	}
 
 }
