@@ -217,6 +217,7 @@ public class DeviceDataManager implements IDataMessageListener
 			}
 	
 			handleIncomingDataAnalysis(resourceName, data);
+
 	
 			handleUpstreamTransmission(resourceName, jsonData, ConfigConst.DEFAULT_QOS);
 	
@@ -441,6 +442,7 @@ public class DeviceDataManager implements IDataMessageListener
 	private void handleIncomingDataAnalysis(ResourceNameEnum resourceName, SensorData data) {
 		_Logger.fine("handleIncomingDataAnalysis called for SensorData.");
 		handleHumiditySensorAnalysis(resourceName, data);
+		handleUpstreamTransmission(resource, data, ConfigConst.DEFAULT_QOS);
 		}
 
 	private void handleIncomingDataAnalysis(ResourceNameEnum resourceName, SystemStateData data)

@@ -116,53 +116,48 @@ public class CloudClientConnector implements ICloudClient, IConnectionListener
 	
 	@Override
 	public boolean sendEdgeDataToCloud(ResourceNameEnum resource, SensorData data)
-	{
-		if (resource != null && data != null) {
-			StringBuilder jsonBuilder = new StringBuilder();
-			jsonBuilder.append("{\"value\":");
-			jsonBuilder.append(data.getValue());
-			jsonBuilder.append(",\"context\":{\"lat\":");
-			jsonBuilder.append(data.getLatitude());
-			jsonBuilder.append(",\"lng\":");
-			jsonBuilder.append(data.getLongitude());
-			jsonBuilder.append(",\"sensorType\":\"");
-			jsonBuilder.append(data.getSensorType());
-			jsonBuilder.append("\",\"description\":\"");
-			jsonBuilder.append(data.getDescription());
-			jsonBuilder.append("\"}}");
-			String payload = jsonBuilder.toString();
-			return publishMessageToCloud(resource, data.getName(), payload);
+		{
+			if (resource != null && data != null) {
+				String payload = DataUtil.getInstance().sensorDataToJson(data);
+				_Logger.info("Sending sensor data to cloud: " + payload);
+	
+				return publishMessageToCloud(resource, data.getName(), payload);
+			}
+	
+			return false;
 		}
-		return false;
-	}
 
 	@Override
 	public boolean sendEdgeDataToCloud(ResourceNameEnum resource, SystemPerformanceData data)
 	{
 		if (resource != null && data != null) {
-			StringBuilder cpuJsonBuilder = new StringBuilder();
-			cpuJsonBuilder.append("{\"value\":");
-			cpuJsonBuilder.append(data.getCpuUtilization());
-			cpuJsonBuilder.append("}");
-			
-			boolean cpuDataSuccess = publishMessageToCloud(resource, ConfigConst.CPU_UTIL_NAME, cpuJsonBuilder.toString());
-			
-			if (!cpuDataSuccess) {
+			// send the reading as a SensorData representation
+			SensorData cpuData = new SensorData();
+			cpuData.updateData(data);
+			cpuData.setName(ConfigConst.CPU_UTIL_NAME);
+			cpuData.setValue(data.getCpuUtilization());
+
+			boolean cpuDataSuccess = sendEdgeDataToCloud(resource, cpuData);
+
+			if (! cpuDataSuccess) {
 				_Logger.warning("Failed to send CPU utilization data to cloud service.");
 			}
 
-			StringBuilder memJsonBuilder = new StringBuilder();
-			memJsonBuilder.append("{\"value\":");
-			memJsonBuilder.append(data.getMemoryUtilization());
-			memJsonBuilder.append("}");
-			
-			boolean memDataSuccess = publishMessageToCloud(resource, ConfigConst.MEM_UTIL_NAME, memJsonBuilder.toString());
-			
-			if (!memDataSuccess) {
+			// send the reading as a SensorData representation
+			SensorData memData = new SensorData();
+			memData.updateData(data);
+			memData.setName(ConfigConst.MEM_UTIL_NAME);
+			memData.setValue(data.getMemoryUtilization());
+
+			boolean memDataSuccess = sendEdgeDataToCloud(resource, memData);
+
+			if (! memDataSuccess) {
 				_Logger.warning("Failed to send memory utilization data to cloud service.");
 			}
-			return (cpuDataSuccess && memDataSuccess);
+
+			return (cpuDataSuccess == memDataSuccess);
 		}
+
 		return false;
 	}
 
